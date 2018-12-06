@@ -1,0 +1,14 @@
+{
+  "a.b[0]": {
+    "start": 7,
+    "length": 1
+  },
+  "a.b[1]": {
+    "start": 16,
+    "length": 5
+  },
+  "a.d": {
+    "start": 26,
+    "length": 1
+  }
+}
