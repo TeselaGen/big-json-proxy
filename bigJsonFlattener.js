@@ -1,30 +1,11 @@
-// FlattenJson asumes keys and paths in the json are of reasonable size (can be managed in memory).
-// If the length of keys is too big the program will crash.
+// FlattenJson receives a json in a read stream (stream.Readable) and outputs the flattened data in the provided write stream (stream.Writable)
+// Flattening a json is explained by the following example. For the following json: {"a": {"b": [{d: 123}], "e": "p"}, "c": false} the flattened data would be:
+// a.b[0].d = 123
+// a.e = "p"
+// c = false
 
-
-// var currentPath = ''
-
-
-
-// function RecurseJson(readS, writeS) {
-//     const startingPath = currentPath;
-//     while (FindKey(readS)) {
-//         valueType = FindType(readS);
-//         if(valueType==1) {
-//             fileW.write('"'+value+'"');
-//             chars = value.length;
-//         } else if(valueType==2) {
-//             chars = CreateRandomJson(fileW, targetCharQuantity);
-//         } else {
-//             chars = CreateRandomArray(fileW, targetCharQuantity);
-//         }
-//     }
-// }
-
-// exports.FlattenJson = function (readStream, writeStream) {
-    
-// }
-
+// FlattenJson asumes (flattened paths, value) pairs in the json are of reasonable size (can be managed in memory).
+// If the size of individual values is too big the program will crash.
 
 const bfj = require('bfj');
 
