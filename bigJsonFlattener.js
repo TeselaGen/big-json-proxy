@@ -9,8 +9,8 @@
 // If the size of individual values is too big the program will crash.
 
 const bfj = require('bfj');
+const fs = require('fs')
 const LineByLineReader = require('line-by-line');
-
 
 
 function _WrapWriteStream(writeStream) {
@@ -65,7 +65,7 @@ exports.FlattenJson = function (readStream, writeStreamFlatten, writeStreamIndex
         WriteOnStreams(value, '"');
      });
     emitter.on(bfj.events.number, value => { 
-        WriteOnStreams(value, '');
+        WriteOnStreams(value.toString(), '');
      });
     emitter.on(bfj.events.literal, value => { 
         WriteOnStreams(JSON.stringify(value), '');
@@ -95,7 +95,7 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
 
     function GetChunkOfFile(index) {
         file = fs.openSync(flattenJsonFile, 'r');
-        buffer = Buffer.from(new Array(index.length))
+        buffer = Buffer.from(new Array(index.length));
         fs.read(file, buffer, 0, index.length, index.position, () => {
             callback(buffer.toString());
         });
@@ -104,12 +104,10 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
     function SearchPathInIndex() {
         const lr = new LineByLineReader(indexFile);
         var index = {};
-        console.log('Searching flattened key path in index: ' + indexFile);
         lr.on('error', function (err) {
             console.log('Error processing the index file: ' + err.toString());
         });
         lr.on('line', function (line) {
-            console.log(line);
             if (line.startsWith(flattenKey)) {
                 var splitted = line.split('=');
                 splitted = splitted[1].split(',');
