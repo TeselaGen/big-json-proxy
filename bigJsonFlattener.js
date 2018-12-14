@@ -10,7 +10,6 @@
 
 const bfj = require('bfj');
 const fs = require('fs')
-const LineByLineReader = require('line-by-line');
 const lineReader = require('line-reader');
 
 
@@ -150,59 +149,4 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
     }, (err) => {
         callback(index);
     });
-
- 
-    // const lr = new LineByLineReader(indexFile);
-    // const index = {};
-    // flattenKey = flattenKey.startsWith('"') ? flattenKey : '"' + flattenKey;
-
-    // function GetChunkOfFile() {
-    //     file = fs.openSync(flattenJsonFile, 'r');
-    //     buffer = Buffer.from(new Array(index.length));
-    //     fs.readSync(file, buffer, 0, index.length, index.position)
-    //     index.value = buffer.toString();
-    //     return index;
-    // }
-
-    // // TODO: Current way of checking lines does account cases like keys containing their own dots or brackets
-    // // Need to fix these border cases . To do so, the index creation also requires a fix.
-    // function ProcessMatchingLine(line) {
-    //     var splitted = line.split('=');
-    //     const key = splitted[0];
-    //     if(!index.type && key.length>flattenKey.length+1) {
-    //         if(key[flattenKey.length]=='.') {
-    //             index.type = 'json';
-    //             lr.close();
-    //         }
-    //         else if(key[flattenKey.length]=='[') {
-    //             index.type = 'array'
-    //         }
-    //         else lr.close();
-    //     }
-    //     else if(index.type=='array') {
-    //         lastBrackedPos = line.indexOf(']', flattenKey.length);
-    //         index.elements = parseInt(line.substring(flattenKey.length+1, lastBrackedPos));
-    //     }
-    //     else {
-    //         splitted = splitted[1].split(',');
-    //         index.position = parseInt(splitted[0]);
-    //         index.length = parseInt(splitted[1]);
-    //         index.type = 'value';
-    //         lr.close();
-    //     }
-    // }
-
-    // lr.on('error', function (err) {
-    //     console.log('Error processing the index file: ' + err.toString());
-    // });
-    // lr.on('line', function (line) {
-    //     if (line.startsWith(flattenKey)) {
-    //         ProcessMatchingLine(line);
-    //     }
-    // });
-    // lr.on('end', () => {
-    //     // console.log('Called end');
-    //     if ('position' in index) GetChunkOfFile();
-    //     callback(index);
-    // });
 }
