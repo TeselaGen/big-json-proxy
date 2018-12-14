@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "test": "node_modules/.bin/jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^23.6.0",
+    "stream-mock": "^1.2.0"
+  },
+  "dependencies": {
+    "bfj": "^6.1.1",
+    "bluebird": "^3.5.3",
+    "line-by-line": "^0.1.6",
+    "line-reader": "^0.4.0"
+  }
+}
