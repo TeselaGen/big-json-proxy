@@ -1,3 +1,4 @@
+const fs = require('fs');
 
 const params = {
     minTotalChars : 100000,  // least amount of characters to generate
@@ -37,10 +38,10 @@ function StringGenerator(len) {
     return res
 }
 
-function KeyGenerator() {
+function KeyGenerator(suffix) {
     const prefix = params.keyPrefix
     const len = RandomNumberBetween(params.keyLengthMin - prefix.length, params.keyLengthMax - prefix.length);
-    const key = prefix + StringGenerator(len);
+    const key = prefix + StringGenerator(len) + '_' + suffix;
     return key
 }
 
@@ -69,7 +70,7 @@ function AppendRandomValue(fileW, targetCharQuantity, deep) {
     else valueType = RandomValueType();
     if(valueType==1) {
         value = StringValueGenerator();
-        fileW.write('"'+value+'"');
+        fileW.write(JSON.stringify(value));
         chars = value.length;
     } else if(valueType==2) {
         chars = CreateRandomJson(fileW, targetCharQuantity, deep+1);
@@ -93,10 +94,12 @@ function CreateRandomArray(fileW, targetCharQuantity, deep) {
 function CreateRandomJson(fileW, targetCharQuantity, deep) {
     var charactersSoFar = 0;
     var key;
+    var count = 0
     fileW.write('{');
     while(charactersSoFar<targetCharQuantity) {
-        key = KeyGenerator();
-        fileW.write('"'+key+'":');
+        key = KeyGenerator(count);
+        fileW.write(JSON.stringify(key)+':');
+        count++;
         charactersSoFar += key.length;
         charactersSoFar += AppendRandomValue(fileW, targetCharQuantity*params.nestedStructSizeRatio, deep);
         if (charactersSoFar<targetCharQuantity) fileW.write(',');
@@ -105,9 +108,14 @@ function CreateRandomJson(fileW, targetCharQuantity, deep) {
     return charactersSoFar;
 }
 
-exports.WriteRandomJson = function (fileWriter, options={}) {
-    Object.assign(params, options);
-    CreateRandomJson(fileWriter, params.minTotalChars, 0);
+/**
+ * @param  {string|WritableStream} fileWriter file path or WritableStream
+ * @param  {Object} options={}
+ */
+exports.WriteRandomJson = function (writer, opts={}) {
+    if(typeof(writer)=='string') writer = fs.createWriteStream(writer);
+    Object.assign(params, opts);
+    const cw = CreateRandomJson(writer, params.minTotalChars, 0);
 }
 
 exports.params = params;

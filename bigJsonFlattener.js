@@ -6,7 +6,7 @@
 // c = false
 
 // FlattenJson asumes (flattened paths, value) pairs in the json are of reasonable size (can be managed in memory).
-// If the size of individual values is too big the program will crash.
+// If the size of individual values is too big the program will run out of memory.
 
 const bfj = require('bfj');
 const fs = require('fs')
@@ -95,7 +95,6 @@ exports.FlattenJson = function (readStream, writeStreamFlatten, writeStreamIndex
  * 
  * @param {string} flattenJsonFile - Path to a JSON file
  * @param {string} indexFile - An object with options for example what working directory to use
- * @returns {Proxy} Proxy wrapped object that will use the compute index to randomly access parts of the JSON file
  */
 exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, callback) {
     const index = {};
@@ -111,7 +110,7 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
     }
 
     // TODO: Current way of checking lines does account cases like keys containing their own dots or brackets
-    // Need to fix these border cases . To do so, the index creation also requires a fix.
+    // Need to fix these border cases. To do so, the index creation also requires a fix.
     function ProcessMatchingLine(line) {
         var splitted = line.split('=');
         const key = splitted[0];
@@ -123,11 +122,10 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
             else if(key[flattenKey.length]=='[') {
                 index.type = 'array'
             }
-            else stop = true;
         }
         else if(index.type=='array') {
             lastBrackedPos = line.indexOf(']', flattenKey.length);
-            index.elements = parseInt(line.substring(flattenKey.length+1, lastBrackedPos));
+            index.elements = parseInt(line.substring(flattenKey.length+1, lastBrackedPos))+1;
         }
         else {
             splitted = splitted[1].split(',');
@@ -146,7 +144,7 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
             if ('position' in index) GetChunkOfFile();
             return false;
         }
-    }, (err) => {
+    }, () => {
         callback(index);
     });
 }

@@ -3,12 +3,13 @@ const path = require('path');
 const bjf = require('./bigJsonFlattener');
 
 opts = {}
+const thenCall = Symbol('then');
 
 /**
  * Big JSON Proxy
  * @param {string} jsonFilePath - Path to a JSON file
  * @param {object} opts - An object with options for example what working directory to use
- * @returns {Proxy} Proxy wrapped object that will use the compute index to randomly access parts of the JSON file
+ * @returns {Promise} Promise of a Proxy wrapped object that emulates an object of the JSON in the file
  */
 function bigJSONProxy(jsonFilePath, opts={}) {
   // create working directory
@@ -37,7 +38,7 @@ function bigJSONProxy(jsonFilePath, opts={}) {
     self._ProcessJsonFile(() => {
       self._CreateTarget();
       self._CreateHandler();
-      const proxy = new Proxy(this._target, this._handler);
+      const proxy = new Proxy(self._target, self._handler);
       resolve(proxy)
     });
   });
@@ -45,8 +46,8 @@ function bigJSONProxy(jsonFilePath, opts={}) {
 
 bigJSONProxy.prototype._ProcessJsonFile = function (callback) {
   const self = this;
-  const startTime = Date.now();
   if(!this._filesCreated) {
+    const startTime = Date.now();
     console.log('Creating index files for json');
     bjf.FlattenJson(this._readStream, this._writeFlattenStream, this._writeIndexStream, () => {
       self._writeFlattenStream.end(()=> {
@@ -71,6 +72,7 @@ bigJSONProxy.prototype._CreateHandler = function () {
   function ProxyIfKeyIsPrefix(target, key, indexInfo) {
     const newTarget = Object.assign({}, target);
     newTarget.type = indexInfo.type;
+    newTarget[thenCall] = -1;
     if(indexInfo.type=='json') newTarget.keyPrefix = key + '.';
     else if(indexInfo.type=='array') {
       newTarget.keyPrefix = key;
@@ -90,19 +92,35 @@ bigJSONProxy.prototype._CreateHandler = function () {
 
   this._handler = {
     get (target, key) {
-      if(target.type=='array' && parseInt(key)) key = `[${key}]`;
+      const isArray = target.type=='array';
+      if(isArray && parseInt(key)+1) key = `[${key}]`;
 
-      if(target.type=='array' && key=='forEach') {
-        // TODO
+      var res = undefined;
+      // beause of promise resolution, 'then' key is called two times when awaiting answer
+      if(key=='then' && target[thenCall]<1) target[thenCall]++;
+      else if(typeof key!='string') return target[key];
+      else if(isArray && key=='forEach') {
+        res = async function(fn) {
+          for(let i=0; i<target.elements; i++) {
+            fn(await self._handler.get(target, i), i, target);
+          }
+        }
       }
-      else if(target.type=='array' && key=='map') {
-        // TODO
+      else if(isArray && key=='map') {
+        res = async function(fn) {
+          result = new Array(target.elements);
+          for(let i=0; i<target.elements; i++) {
+            result[i] = fn(await self._handler.get(target, i), i, target);
+          }
+          return result;
+        }
       }
       else {
         // if proxy is type array and the key doesn't start with a number between brackets do not even bother searching
-        if(target.type=='array' && !/^\[\d+\]/.test(key.toString())) return undefined;
-        else return ValuePromise(target, target.keyPrefix + key);          
+        if(isArray && !/^\[\d+\]/.test(key.toString())) res = undefined;
+        else res = ValuePromise(target, target.keyPrefix + key);          
       }
+      return res
     },
     set () {
       return false;
@@ -116,12 +134,13 @@ bigJSONProxy.prototype._CreateTarget = function () {
     'indexFilePath': this._indexFilePath,
     keyPrefix: '',
     type: 'json',
+    [thenCall]: -1,
   };
 }
 
 bigJSONProxy.prototype._CreateStreams = function () {
   const basename = path.basename(this._jsonFilePath);
-  this._flattenFilePath = this._workingDir + 'flatten_' + basename;
+  this._flattenFilePath = this._workingDir + 'flatten.' + basename;
   this._indexFilePath = this._workingDir + 'flatten.index.' + basename;
   if(this._reuseFiles && fs.existsSync(this._flattenFilePath) && fs.existsSync(this._indexFilePath)) this._filesCreated = true;
   else {
