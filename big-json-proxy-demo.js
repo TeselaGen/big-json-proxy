@@ -1,15 +1,15 @@
-const bigJSONProxy = require('./big-json-proxy')
+const {bigJSONProxy, bigJSONProxySync} = require('./big-json-proxy')
 
 
 async function bigJsonExample(jsonfile) {
 
-    var proxy = await new bigJSONProxy(jsonfile);
+    var proxy = await bigJSONProxy(jsonfile);
 
     var value = await proxy['a.d'];
     console.log(value); // 4
     value = await proxy.a.d;
     console.log(value); // undefined because it tried to obtain 'd' from the promise proxy.a
-    var value = await (await proxy.a).d;
+    value = await (await proxy.a).d;
     console.log(value); // 4
 
     var jsonProxy = await proxy.a; // jsonProxy is a new proxy
@@ -43,6 +43,48 @@ async function bigJsonExample(jsonfile) {
 }
 
 bigJsonExample('input.json');
+
+
+function bigJsonSyncExample(jsonfile) {
+
+    var proxy = bigJSONProxySync(jsonfile);
+
+    var value = proxy['a.d'];
+    console.log(value); // 4
+    value = proxy.a.d;
+    console.log(value); // 4
+
+    var jsonProxy = proxy.a; // jsonProxy is a new proxy
+    value = jsonProxy.d;
+    console.log(value); // 4
+    
+    var arrayProxy = jsonProxy.b;  // arrayProxy is a new proxy
+    
+    value = arrayProxy[1];
+    console.log(value); // a.b[1] "e\n"
+    // which is the same as
+    value = proxy['a.b[1]'];
+    console.log(value); // "e\n"
+
+    value = arrayProxy[0];
+    console.log(value); // 1
+
+    arrayProxy.forEach((v) => {
+        console.log(v)  // 1 then "e\n"
+    });
+
+    var map = arrayProxy.map((v) => 'mapped ' + v);
+    console.log(map)    // [ 'mapped 1', 'mapped "e\\n"' ]
+
+    // some misses
+    var value = proxy.p;
+    console.log(value==undefined); // true
+
+    var value = arrayProxy[2];
+    console.log('a.b[2] is', value); // a.b[2] is undefined
+}
+
+bigJsonSyncExample('input.json');
 
 
 

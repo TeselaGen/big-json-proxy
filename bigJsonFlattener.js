@@ -11,11 +11,12 @@
 const bfj = require('bfj');
 const fs = require('fs')
 const lineReader = require('line-reader');
+const Promise = require('bluebird')
 
 
 function _WrapWriteStream(writeStream) {
-    var clone = {written: 0};
-    Object.assign(clone, writeStream);
+    var clone = {};
+    clone.written = 0;
     clone.write = function(chunk, encoding, callback) {
         clone.written += chunk.length;
         writeStream.write(chunk, encoding, callback);
@@ -40,7 +41,7 @@ function BuildPathString(pathArray) {
     return '"' + path.substring(1) + '"';
 }
 
-exports.FlattenJson = function (readStream, writeStreamFlatten, writeStreamIndex, callback=()=>{}) {
+exports.FlattenJson = function (readStream, writeStreamFlatten, writeStreamIndex) {
     const writeStream = _WrapWriteStream(writeStreamFlatten);
     const emitter = bfj.walk(readStream);
     var pathArray = [];
@@ -79,15 +80,20 @@ exports.FlattenJson = function (readStream, writeStreamFlatten, writeStreamIndex
         UpdatePathAfterValue(pathArray);
      });
     emitter.on(bfj.events.error, error => { 
-        console.log("error parsing json: " + error.toString());
+        console.log(error.toString());
      });
     emitter.on(bfj.events.dataError, error => { 
         console.log("invalid json: " + error.toString());
      });
-    emitter.on(bfj.events.end, () => {
-        callback();
+    return new Promise(resolve => {
+        emitter.on(bfj.events.end, () => {
+            writeStreamFlatten.end(() => {
+                writeStreamIndex.end(() => {
+                    resolve();
+                });
+            });
+        });
     });
-
 }
 
 /**
@@ -96,22 +102,25 @@ exports.FlattenJson = function (readStream, writeStreamFlatten, writeStreamIndex
  * @param {string} flattenJsonFile - Path to a JSON file
  * @param {string} indexFile - An object with options for example what working directory to use
  */
-exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, callback) {
+exports.FindIndexedValue = async function(flattenJsonFile, indexFile, flattenKey, callback) {
     const index = {};
     var stop = false;
     flattenKey = flattenKey.startsWith('"') ? flattenKey : '"' + flattenKey;
+    flattenKey = flattenKey.endsWith('"') ? flattenKey.slice(0, -1) : flattenKey;
 
     function GetChunkOfFile() {
-        file = fs.openSync(flattenJsonFile, 'r');
-        buffer = Buffer.from(new Array(index.length));
-        fs.readSync(file, buffer, 0, index.length, index.position)
-        index.value = buffer.toString();
-        return index;
+        if(index.position>-1) {
+            file = fs.openSync(flattenJsonFile, 'r');
+            buffer = Buffer.from(new Array(index.length));
+            fs.readSync(file, buffer, 0, index.length, index.position)
+            index.value = buffer.toString();
+            return index;
+        }
     }
 
     // TODO: Current way of checking lines does account cases like keys containing their own dots or brackets
     // Need to fix these border cases. To do so, the index creation also requires a fix.
-    function ProcessMatchingLine(line) {
+    async function ProcessMatchingLine(line) {
         var splitted = line.split('=');
         const key = splitted[0];
         if(!index.type && key.length>flattenKey.length+1) {
@@ -136,15 +145,15 @@ exports.FindIndexedValue = function(flattenJsonFile, indexFile, flattenKey, call
         }
     }
 
-    lineReader.eachLine(indexFile, function(line, lastLine) {
+    const eachLine = Promise.promisify(lineReader.eachLine);
+    await eachLine(indexFile, function(line, lastLine) {
         if (line.startsWith(flattenKey)) {
             ProcessMatchingLine(line);
         }
         if (stop || lastLine) {
-            if ('position' in index) GetChunkOfFile();
+            GetChunkOfFile();
             return false;
         }
-    }, () => {
-        callback(index);
     });
+    return index;
 }
